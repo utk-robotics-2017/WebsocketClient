@@ -1,3 +1,4 @@
+import tornado
 from tornado import escape
 from tornado import gen
 from tornado import httpclient
@@ -9,20 +10,19 @@ DEFAULT_CONNECT_TIMEOUT = 60
 DEFAULT_REQUEST_TIMEOUT = 60
  
 class WebsocketClient():
-    def __init__(self, *, connect_timeout=DEFAULT_CONNECT_TIMEOUT,
+    def __init__(self, url, connect_timeout=DEFAULT_CONNECT_TIMEOUT,
                  request_timeout=DEFAULT_REQUEST_TIMEOUT):
 
         self.connect_timeout = connect_timeout
         self.request_timeout = request_timeout
-
-    def connect(self, url):
+        
         request = httpclient.HTTPRequest(url=url,
                                          connect_timeout=self.connect_timeout,
-                                         request_timeout=self.request_timeout,
-                                         headers=headers)
+                                         request_timeout=self.request_timeout)
         ws_conn = websocket.WebSocketClientConnection(ioloop.IOLoop.current(),
                                                       request)
         ws_conn.connect_future.add_done_callback(self._connect_callback)
+        tornado.ioloop.IOLoop.current().start()
 
     def write_message(self, data):
         """Send message to the server
@@ -31,7 +31,7 @@ class WebsocketClient():
         if not self._ws_connection:
             raise RuntimeError('Web socket connection is closed.')
 
-        self._ws_connection.write_message(escape.utf8(json.dumps(data)))
+        self._ws_connection.write_message(data)
 
     def close(self):
         """Close connection.
@@ -58,7 +58,7 @@ class WebsocketClient():
                 self.on_close()
                 break
 
-            self._on_message(msg)
+            self.on_message(msg)
 
     def on_message(self, msg):
         """This is called when new message is available from the server.
